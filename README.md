@@ -18,6 +18,10 @@ A MCP server for Resend API. Let LLMs compose and send emails for you.
     - `from` (string, optional): Sender email address (uses SENDER_EMAIL_ADDRESS if not provided)
     - `replyTo` (array, optional): Reply-to email addresses (uses REPLY_TO_EMAIL_ADDRESSES if not provided)
     - `scheduledAt` (string, optional): Scheduled email delivery time
+    - `attachments` (array, optional): List of attachments, each attachment must have:
+      - `filename` (string): Name of the attachment file
+      - `localPath` (string): Absolute path to a local file on user's computer (required if remoteUrl not provided)
+      - `remoteUrl` (string): URL to a file on the internet (required if localPath not provided)
 
 ## Getting an API Key
 
