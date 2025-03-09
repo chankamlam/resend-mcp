@@ -24,8 +24,8 @@ if (!SENDER_EMAIL_ADDRESS) {
 }
 
 // Get optional reply-to emails from environment variable
-const REPLY_TO_EMAILS = process.env.REPLY_TO_EMAILS ? 
-  process.env.REPLY_TO_EMAILS.split(",") : [];
+const REPLY_TO_EMAIL_ADDRESSES = process.env.REPLY_TO_EMAIL_ADDRESSES ?
+  process.env.REPLY_TO_EMAIL_ADDRESSES.split(",").map(e => e.trim()).filter(Boolean) : [];
 
 // Initialize Resend client
 const resend = new Resend(RESEND_API_KEY);
@@ -64,7 +64,7 @@ const SEND_EMAIL_TOOL: Tool = {
           type: "string",
           format: "email"
         },
-        description: "Reply-to email addresses (optional if REPLY_TO_EMAILS not set)"
+        description: "Optional. If provided, uses these as the reply-to email addresses; otherwise uses REPLY_TO_EMAIL_ADDRESSES environment variable"
       },
       scheduledAt: {
         type: "string",
@@ -133,7 +133,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Sender email must be provided either via args or SENDER_EMAIL_ADDRESS environment variable");
         }
 
-        const replyToEmails = args.replyTo || REPLY_TO_EMAILS;
+        const replyToEmails = args.replyTo || REPLY_TO_EMAIL_ADDRESSES;
 
         const response = await resend.emails.send({
           to: args.to,
