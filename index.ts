@@ -29,7 +29,7 @@ const REPLY_TO_EMAIL_ADDRESSES = process.env.REPLY_TO_EMAIL_ADDRESSES ?
   process.env.REPLY_TO_EMAIL_ADDRESSES.split(",").map(e => e.trim()).filter(Boolean) : [];
 
 // Initialize Resend client
-const resend = new Resend(RESEND_API_KEY);
+const resend = new Resend(RESEND_API_KEY.trim());
 
 // Define email sending tool
 const SEND_EMAIL_TOOL: Tool = {
@@ -196,7 +196,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for send_email tool");
         }
 
-        const fromEmail = args.from || SENDER_EMAIL_ADDRESS;
+        const fromEmail = args.from || SENDER_EMAIL_ADDRESS.trim();
         if (!fromEmail) {
           throw new Error("Sender email must be provided either via args or SENDER_EMAIL_ADDRESS environment variable");
         }
