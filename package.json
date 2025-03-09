@@ -1,0 +1,42 @@
+{
+  "name": "resend-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Resend API",
+  "license": "MIT",
+  "author": "Hawstein",
+  "homepage": "https://github.com/Hawstein/resend-mcp",
+  "bugs": "https://github.com/Hawstein/resend-mcp/issues",
+  "type": "module",
+  "bin": {
+    "resend-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && node -e \"require('fs').chmodSync('dist/index.js', '755')\"",
+    "prepare": "npm run build",
+    "watch": "tsc --watch"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "resend-mcp",
+    "resend",
+    "resend-api",
+    "resend-email",
+    "email",
+    "ai"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.1",
+    "resend": "^4.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.0",
+    "typescript": "^5.7.3"
+  }
+}
