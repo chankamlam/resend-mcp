@@ -8,6 +8,7 @@ import {
   Tool,
  } from "@modelcontextprotocol/sdk/types.js";
 import { Resend } from "resend";
+import { readFileSync, existsSync } from "fs";
 
 // Get API key from environment variable
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;
@@ -35,8 +36,8 @@ const SEND_EMAIL_TOOL: Tool = {
   name: "send_email",
   description:
     "Sends an email using the Resend API. " +
-    "Supports plain text content and optional scheduling. " +
-    "Can specify custom sender and reply-to addresses if not configured via environment variables.",
+    "Supports plain text content, attachments and optional scheduling. " +
+    "Can specify custom sender and reply-to addresses.",
   inputSchema: {
     type: "object",
     properties: {
@@ -69,6 +70,32 @@ const SEND_EMAIL_TOOL: Tool = {
       scheduledAt: {
         type: "string",
         description: "Optional parameter to schedule the email. This uses natural language. Examples would be 'tomorrow at 10am' or 'in 2 hours' or 'next day at 9am PST' or 'Friday at 3pm ET'."
+      },
+      attachments: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            filename: {
+              type: "string",
+              description: "Name of the attachment file"
+            },
+            localPath: {
+              type: "string",
+              description: "Absolute path to a local file on user's computer. Required if remoteUrl is not provided."
+            },
+            remoteUrl: {
+              type: "string",
+              description: "URL to a file on the internet. Required if localPath is not provided."
+            }
+          },
+          required: ["filename"],
+          oneOf: [
+            { required: ["localPath"] },
+            { required: ["remoteUrl"] }
+          ]
+        },
+        description: "Optional. List of attachments. Each attachment must have a filename and either localPath (path to a local file) or remoteUrl (URL to a file on the internet)."
       }
     },
     required: ["to", "subject", "content"]
@@ -76,6 +103,24 @@ const SEND_EMAIL_TOOL: Tool = {
 };
 
 // Type guard for email args
+interface Attachment {
+  filename: string;
+  localPath?: string;
+  remoteUrl?: string;
+}
+
+function isAttachment(arg: unknown): arg is Attachment {
+  if (typeof arg !== "object" || arg === null) return false;
+
+  const attachment = arg as Attachment;
+  if (typeof attachment.filename !== "string") return false;
+
+  // Must have either localPath or remoteUrl, but not both
+  const hasLocalPath = "localPath" in attachment && typeof attachment.localPath === "string";
+  const hasRemoteUrl = "remoteUrl" in attachment && typeof attachment.remoteUrl === "string";
+  return hasLocalPath !== hasRemoteUrl; // XOR operation
+}
+
 function isEmailArgs(args: unknown): args is {
   to: string;
   subject: string;
@@ -83,17 +128,40 @@ function isEmailArgs(args: unknown): args is {
   from?: string;
   replyTo?: string[];
   scheduledAt?: string;
+  attachments?: Attachment[];
 } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "to" in args &&
-    typeof (args as { to: string }).to === "string" &&
-    "subject" in args &&
-    typeof (args as { subject: string }).subject === "string" &&
-    "content" in args &&
-    typeof (args as { content: string }).content === "string"
-  );
+  if (
+    typeof args !== "object" ||
+    args === null
+  ) {
+    return false;
+  }
+
+  const emailArgs = args as {
+    to: unknown;
+    subject: unknown;
+    content: unknown;
+    attachments?: unknown[];
+  };
+
+  if (
+    !("to" in emailArgs) ||
+    typeof emailArgs.to !== "string" ||
+    !("subject" in emailArgs) ||
+    typeof emailArgs.subject !== "string" ||
+    !("content" in emailArgs) ||
+    typeof emailArgs.content !== "string"
+  ) {
+    return false;
+  }
+
+  // Check optional attachments if present
+  if ("attachments" in emailArgs) {
+    if (!Array.isArray(emailArgs.attachments)) return false;
+    if (!emailArgs.attachments.every(isAttachment)) return false;
+  }
+
+  return true;
 }
 
 // Server implementation
@@ -135,13 +203,43 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         const replyToEmails = args.replyTo || REPLY_TO_EMAIL_ADDRESSES;
 
+        // Convert attachments to Resend API format
+        const attachments = args.attachments?.map(attachment => {
+          if (attachment.localPath) {
+            // Check if file exists
+            if (!existsSync(attachment.localPath)) {
+              throw new Error(`Attachment file not found: ${attachment.localPath}`);
+            }
+            // Try to read the file
+            try {
+              // readFileSync can read any file format as it reads files in binary mode
+              const content = readFileSync(attachment.localPath).toString('base64');
+              return {
+                filename: attachment.filename,
+                content,
+                path: undefined
+              };
+            } catch (error) {
+              throw new Error(`Failed to read attachment file: ${attachment.localPath}. Error: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          }
+
+          // If using remoteUrl
+          return {
+            filename: attachment.filename,
+            content: undefined,
+            path: attachment.remoteUrl
+          };
+        });
+
         const response = await resend.emails.send({
           to: args.to,
           from: fromEmail,
           subject: args.subject,
           text: args.content,
           replyTo: replyToEmails,
-          scheduledAt: args.scheduledAt
+          scheduledAt: args.scheduledAt,
+          attachments,
         });
 
         if (response.error) {
