@@ -16,8 +16,12 @@ if (!RESEND_API_KEY) {
   process.exit(1);
 }
 
-// Get optional sender email from environment variable
-const SENDER_EMAIL = process.env.SENDER_EMAIL;
+// Get sender email from environment variable
+const SENDER_EMAIL_ADDRESS = process.env.SENDER_EMAIL_ADDRESS;
+if (!SENDER_EMAIL_ADDRESS) {
+  console.error("Error: SENDER_EMAIL_ADDRESS environment variable is required");
+  process.exit(1);
+}
 
 // Get optional reply-to emails from environment variable
 const REPLY_TO_EMAILS = process.env.REPLY_TO_EMAILS ? 
@@ -52,7 +56,7 @@ const SEND_EMAIL_TOOL: Tool = {
       from: {
         type: "string",
         format: "email",
-        description: "Sender email address (required if SENDER_EMAIL not set)"
+        description: "Optional. If provided, uses this as the sender email address; otherwise uses SENDER_EMAIL_ADDRESS environment variable"
       },
       replyTo: {
         type: "array",
@@ -124,9 +128,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error("Invalid arguments for send_email tool");
         }
 
-        const fromEmail = args.from || SENDER_EMAIL;
+        const fromEmail = args.from || SENDER_EMAIL_ADDRESS;
         if (!fromEmail) {
-          throw new Error("Sender email must be provided either via args or SENDER_EMAIL environment variable");
+          throw new Error("Sender email must be provided either via args or SENDER_EMAIL_ADDRESS environment variable");
         }
 
         const replyToEmails = args.replyTo || REPLY_TO_EMAILS;
