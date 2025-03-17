@@ -29,7 +29,8 @@
     "resend-api",
     "resend-email",
     "email",
-    "ai"
+    "ai",
+    "dotenv": "^16.4.5"
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.1",
